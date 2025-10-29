@@ -8,7 +8,17 @@ from tools import execute_sql, get_schema, save_data_to_csv
 # --- DSPy Agent Definition ---
 class SQLAgentSignature(dspy.Signature):
     """
-    ====> (1.1.1) YOUR AWESOME DESCRIPTION/PROMPT HERE
+    You are an expert SQL agent that answers user questions in natural language by querying a SQLite database.
+    Tools:
+    - execute_sql(query: str): Executes SQL, returns results or error.
+    - get_schema(table_name: str or None): Returns table list or columns/types.
+    - save_data_to_csv(data: list of rows, filename: str): Saves to CSV.
+    Rules:
+    - Start with get_schema.
+    - Use execute_sql for queries.
+    - Fix errors in retries (max 7).
+    - Save large results to CSV, report path.
+    - Natural language final answer only from data.
     """
 
     question = dspy.InputField(desc="The user's natural language question.")
@@ -26,7 +36,7 @@ class SQLAgent(dspy.Module):
         self.agent = dspy.ReAct(
             SQLAgentSignature,
             tools=tools,
-            max_iters=7,  # Set a max number of steps
+            max_iters=7,
         )
 
     def forward(self, question: str, initial_schema: str) -> dspy.Prediction:
@@ -51,28 +61,24 @@ def create_agent(conn: sqlite3.Connection, query_history: list[str] | None = Non
 
     execute_sql_tool = dspy.Tool(
         name="execute_sql",
-        # ===> (1.1.2) YOUR execute_sql TOOL DESCRIPTION HERE
-        desc="",
-        # Use lambda to pass the 'conn' object
+        desc="Executes SQL query. Input: query (str). Output: rows string or error.",
         func=lambda query: execute_sql(conn, query, query_history),
     )
 
     get_schema_tool = dspy.Tool(
         name="get_schema",
-        # ===> (1.1.2) YOUR get_schema_tool TOOL DESCRIPTION HERE
-        desc="",
-        # Use lambda to pass the 'conn' object
+        desc="Gets schema. Input: table_name (str/None). Output: table names list or [(col, type)].",
         func=lambda table_name: get_schema(conn, table_name),
     )
 
     save_csv_tool = dspy.Tool(
         name="save_data_to_csv",
-        # ===> YOUR save_csv_tool TOOL DESCRIPTION HERE
-        desc="",
+        desc="Saves data to CSV. Input: data (list of tuples/lists), filename (str). Output: success path or error.",
         func=save_data_to_csv
     )
 
-    all_tools = [execute_sql_tool, get_schema_tool]     # Add save_csv_tool when completed
+    all_tools = [execute_sql_tool, get_schema_tool, save_csv_tool]
+
 
     # 2. Instantiate and run the agent
     agent = SQLAgent(tools=all_tools)

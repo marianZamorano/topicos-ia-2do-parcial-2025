@@ -17,11 +17,12 @@ def execute_sql(conn: sqlite3.Connection, query: str, query_history: list[str] |
         # Check if it was a query that returns data (SELECT)
         if cursor.description:
             rows = cursor.fetchall()
-            return str(rows)  # Return data as a string
+            return str(rows)
         else:
             conn.commit()
             return "Query executed successfully (no data returned)."
     except sqlite3.Error as e:
+        print(f"   [ERROR] {e}")
         return f"Error: {e}"  # Return the error message string
 
 
@@ -43,10 +44,16 @@ def get_schema(conn: sqlite3.Connection, table_name: str | None = None) -> str:
 
 
 def save_data_to_csv(data: list[tuple], filename: str) -> str:
-    """
-    ===> YOUR TOOL DESCRIPTION HERE
-    """
-    print(f"   [Tool Action] Saving data to {filename}...")
-    ### ========================= ###
-    # YOUR TOOL IMPLEMENTATION HERE
-    ### ========================= ###
+    try:
+        os.makedirs("reports", exist_ok=True)
+        path = os.path.join("reports", filename)
+        if not path.endswith(".csv"):
+            path += ".csv"
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if data:
+                writer.writerow([f"col{i}" for i in range(len(data[0]))])
+            writer.writerows(data)
+        return f"Success: Saved to {os.path.abspath(path)}"
+    except Exception as e:
+        return f"Error: {str(e)}"
